@@ -1,0 +1,186 @@
+{% load static %}
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}MLB Hit Dashboard{% endblock %}</title>
+  <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700&display=swap" rel="stylesheet">
+  <style>
+    :root, [data-theme="light"] {
+      --text-xs: 0.75rem;
+      --text-sm: 0.875rem;
+      --text-base: 1rem;
+      --text-lg: 1.125rem;
+      --text-xl: 1.5rem;
+      --space-1: 0.25rem;
+      --space-2: 0.5rem;
+      --space-3: 0.75rem;
+      --space-4: 1rem;
+      --space-6: 1.5rem;
+      --space-8: 2rem;
+      --radius-sm: 0.375rem;
+      --radius-md: 0.5rem;
+      --radius-lg: 0.75rem;
+      --color-bg: #f7f6f2;
+      --color-surface: #f9f8f5;
+      --color-surface-2: #fbfbf9;
+      --color-border: #d4d1ca;
+      --color-divider: #dcd9d5;
+      --color-text: #28251d;
+      --color-text-muted: #6f6d67;
+      --color-text-faint: #9f9c95;
+      --color-primary: #01696f;
+      --color-primary-soft: #d9e8e6;
+      --color-warning: #964219;
+      --color-success: #437a22;
+      --shadow-sm: 0 1px 2px rgba(0,0,0,.06);
+      --shadow-md: 0 6px 18px rgba(0,0,0,.08);
+      --font-body: 'Satoshi', sans-serif;
+    }
+
+    [data-theme="dark"] {
+      --color-bg: #171614;
+      --color-surface: #1c1b19;
+      --color-surface-2: #201f1d;
+      --color-border: #393836;
+      --color-divider: #262523;
+      --color-text: #cdccca;
+      --color-text-muted: #9a9894;
+      --color-text-faint: #6e6b67;
+      --color-primary: #4f98a3;
+      --color-primary-soft: #233234;
+      --color-warning: #bb653b;
+      --color-success: #6daa45;
+      --shadow-sm: 0 1px 2px rgba(0,0,0,.20);
+      --shadow-md: 0 8px 24px rgba(0,0,0,.28);
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: var(--color-bg); color: var(--color-text); font-family: var(--font-body); }
+    body { font-size: var(--text-base); line-height: 1.5; }
+    a { color: inherit; text-decoration: none; }
+    button, input, select { font: inherit; }
+    .shell { max-width: 1400px; margin: 0 auto; padding: var(--space-6); }
+    .topbar { display: flex; justify-content: space-between; align-items: center; gap: var(--space-4); margin-bottom: var(--space-6); }
+    .title { font-size: var(--text-xl); font-weight: 700; letter-spacing: -0.02em; }
+    .muted { color: var(--color-text-muted); }
+    .badge {
+      display: inline-flex; align-items: center; gap: 0.35rem;
+      padding: 0.3rem 0.55rem; border-radius: 999px;
+      font-size: var(--text-xs); font-weight: 700;
+      background: var(--color-surface-2); border: 1px solid var(--color-border);
+    }
+    .badge--recommended { background: var(--color-primary-soft); color: var(--color-primary); border-color: transparent; }
+    .panel {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-sm);
+    }
+    .section { margin-bottom: var(--space-6); }
+    .section-head {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: var(--space-3);
+    }
+    .section-title { font-size: var(--text-lg); font-weight: 700; }
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: var(--space-4);
+    }
+    .pick-card {
+      padding: var(--space-4);
+      display: grid;
+      gap: var(--space-3);
+      min-height: 280px;
+      position: relative;
+    }
+    .pick-card.recommended {
+      background: linear-gradient(180deg, var(--color-primary-soft), var(--color-surface));
+      border-color: color-mix(in srgb, var(--color-primary) 35%, var(--color-border));
+      box-shadow: var(--shadow-md);
+    }
+    .pick-label { font-size: var(--text-xs); text-transform: uppercase; letter-spacing: .08em; color: var(--color-text-muted); }
+    .pick-name { font-size: var(--text-lg); font-weight: 700; }
+    .pick-score { font-size: 2rem; font-weight: 700; letter-spacing: -0.04em; font-variant-numeric: tabular-nums; }
+    .metric-list { display: grid; gap: var(--space-2); }
+    .metric-row {
+      display: flex; justify-content: space-between; gap: var(--space-3);
+      padding-top: var(--space-2); border-top: 1px solid var(--color-divider);
+      font-size: var(--text-sm);
+    }
+    .filters {
+      display: grid; grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: var(--space-3); padding: var(--space-4);
+    }
+    .field { display: grid; gap: var(--space-1); }
+    .field label { font-size: var(--text-xs); font-weight: 700; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: .06em; }
+    .field input, .field select {
+      width: 100%; padding: 0.7rem 0.8rem; border-radius: var(--radius-md);
+      border: 1px solid var(--color-border); background: var(--color-surface-2); color: var(--color-text);
+    }
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
+    th, td { padding: 0.85rem 0.8rem; text-align: left; white-space: nowrap; }
+    th {
+      position: sticky; top: 0; background: var(--color-surface);
+      font-size: var(--text-xs); text-transform: uppercase; letter-spacing: .06em;
+      color: var(--color-text-muted); border-bottom: 1px solid var(--color-divider);
+    }
+    td { border-top: 1px solid var(--color-divider); font-variant-numeric: tabular-nums; }
+    tr:hover td { background: var(--color-surface-2); }
+    .score-pill {
+      display: inline-flex; min-width: 3.2rem; justify-content: center;
+      padding: 0.25rem 0.5rem; border-radius: 999px; font-weight: 700;
+      background: var(--color-primary-soft); color: var(--color-primary);
+    }
+    .split {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: var(--space-4);
+    }
+    .watch-list { padding: var(--space-4); }
+    .watch-item {
+      display: flex; justify-content: space-between; gap: var(--space-3);
+      padding: 0.8rem 0; border-top: 1px solid var(--color-divider);
+    }
+    .watch-item:first-child { border-top: 0; padding-top: 0; }
+
+    @media (max-width: 1024px) {
+      .card-grid, .filters, .split { grid-template-columns: 1fr; }
+    }
+  </style>
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+  <a href="#content" class="sr-only">Skip to content</a>
+  <div class="shell">
+    <header class="topbar">
+      <div>
+        <div class="title">MLB Hit Dashboard</div>
+        <div class="muted">{% block subtitle %}Ranked opposite-handed hitter spots{% endblock %}</div>
+      </div>
+      <button type="button" class="badge" data-theme-toggle aria-label="Toggle theme">Theme</button>
+    </header>
+
+    <main id="content">
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+
+  <script>
+    (function () {
+      const root = document.documentElement;
+      const btn = document.querySelector("[data-theme-toggle]");
+      let mode = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      root.setAttribute("data-theme", mode);
+      btn?.addEventListener("click", function () {
+        mode = mode === "dark" ? "light" : "dark";
+        root.setAttribute("data-theme", mode);
+      });
+    })();
+  </script>
+  {% block extra_js %}{% endblock %}
+</body>
+</html>

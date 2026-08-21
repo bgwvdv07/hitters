@@ -1,0 +1,44 @@
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>Rank</th>
+        <th>Batter</th>
+        <th>Matchup</th>
+        <th>Order</th>
+        <th>Hand</th>
+        <th>Opp pitcher</th>
+        <th>P hand</th>
+        <th>Hit score</th>
+        <th>Batter AVG</th>
+        <th>Vs hand AVG</th>
+        <th>Pitcher ERA</th>
+        <th>Pitcher WHIP</th>
+        <th>Whiff %</th>
+        <th>Defense</th>
+        <th>Bullpen</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for hitter in hitters %}
+        <tr>
+          <td>{{ hitter.game_rank }}</td>
+          <td><strong>{{ hitter.batter }}</strong></td>
+          <td>{{ hitter.matchup }}</td>
+          <td>{{ hitter.order }}</td>
+          <td>{{ hitter.batter_hand }}</td>
+          <td>{{ hitter.opp_pitcher }}</td>
+          <td>{{ hitter.opp_pitcher_hand }}</td>
+          <td><span class="score-pill">{{ hitter.hit_score }}</span></td>
+          <td>{{ hitter.batter_avg }}</td>
+          <td>{{ hitter.batter_vs_hand_avg }}</td>
+          <td>{{ hitter.pitcher_era }}</td>
+          <td>{{ hitter.pitcher_whip }}</td>
+          <td>{{ hitter.pitcher_whiff_pct }}</td>
+          <td>{{ hitter.elite_defense_flag }}</td>
+          <td>{{ hitter.bullpen_risk_flag }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

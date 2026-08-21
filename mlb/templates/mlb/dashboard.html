@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block title %}MLB Hit Dashboard{% endblock %}
+{% block subtitle %}Slate for {{ slate_date }} · {{ all_hitters|length }} ranked hitters{% endblock %}
+
+{% block content %}
+  <section class="section">
+    <div class="section-head">
+      <h1 class="section-title">Featured picks</h1>
+      <span class="badge">Rule of 3</span>
+    </div>
+    {% include "mlb/partials/featured_cards.html" with featured_picks=featured_picks %}
+  </section>
+
+  <section class="section panel">
+    {% include "mlb/partials/filters.html" with filters=filters %}
+  </section>
+
+  <section class="section split">
+    <div class="panel">
+      <div class="section-head" style="padding: 1rem 1rem 0;">
+        <h2 class="section-title">Ranked hitters</h2>
+        <span class="muted">Sorted by hit score</span>
+      </div>
+      {% include "mlb/partials/hitters_table.html" with hitters=all_hitters %}
+    </div>
+
+    <aside class="panel watch-list">
+      <div class="section-head">
+        <h2 class="section-title">0-hit watch</h2>
+        <span class="badge">Side list</span>
+      </div>
+
+      {% if zero_hit_watch %}
+        {% for hitter in zero_hit_watch %}
+          <div class="watch-item">
+            <div>
+              <div><strong>{{ hitter.batter }}</strong></div>
+              <div class="muted">{{ hitter.matchup }}</div>
+            </div>
+            <div style="text-align:right;">
+              <div class="score-pill">{{ hitter.hit_score }}</div>
+              <div class="muted">Order {{ hitter.order }}</div>
+            </div>
+          </div>
+        {% endfor %}
+      {% else %}
+        <p class="muted">No rebound candidates today.</p>
+      {% endif %}
+    </aside>
+  </section>
+{% endblock %}
