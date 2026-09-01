@@ -1,38 +1,64 @@
 #!/usr/bin/env bash
-set -euo pipefail
+# Grade yesterday's picks, fold them into graded_history.csv, retrain.
 
-PROJECT_DIR="/home/david/Desktop/screen/hitters"
-PYTHON="/usr/bin/python3"
-LOG_DIR="$PROJECT_DIR/logs"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/_common.sh"
+
 LOG_FILE="$LOG_DIR/grading.log"
-
-mkdir -p "$LOG_DIR"
-cd "$PROJECT_DIR"
 
 # Same "yesterday" convention grade_picks.py uses internally.
 DATE="$(date -d yesterday +%Y-%m-%d)"
+CANDIDATES_FILE="output/hit_candidates_${DATE}.csv"
 GRADED_FILE="output/graded_picks_${DATE}.csv"
 
-echo "=== Grading run started: $(date -Is) ===" | tee -a "$LOG_FILE"
-
-# 1. Grade yesterday's picks against the MLB boxscore.
-"$PYTHON" -m scripts.grade_picks \
-  >> "$LOG_FILE" 2>&1
-
-# 2. Fold the freshly graded picks into the cumulative history file that
-#    train_hit_model.py reads. Without this step the retrain below just
-#    keeps re-training on the same old graded_history.csv forever.
-if [ -f "$GRADED_FILE" ]; then
-  "$PYTHON" -m scripts.build_graded_history "$GRADED_FILE" --out output/graded_history.csv \
-    >> "$LOG_FILE" 2>&1
-else
-  echo "WARNING: $GRADED_FILE not found, skipping history update and retrain" | tee -a "$LOG_FILE"
+exec 9>"$LOG_DIR/.grading.lock"
+if ! flock -n 9; then
+  log "grading already running, skipping" >> "$LOG_FILE"
+  exit 0
 fi
 
-# 3. Retrain models (had_hit_1, had_hit_2, had_run_1) on the updated history.
-if [ -f "$GRADED_FILE" ]; then
-  "$PYTHON" -m scripts.train_hit_model_v2 --history-file output/graded_history.csv -v \
-    >> "$LOG_FILE" 2>&1
-fi
+{
+  log "=== Grading run started for $DATE ==="
 
-echo "=== Grading run finished: $(date -Is) ===" | tee -a "$LOG_FILE"
+  # grade_picks.py raises FileNotFoundError when the candidates file is
+  # missing, which under `set -e` aborts the whole run. Check first and
+  # exit cleanly instead -- a no-lineup day is not an error.
+  if [ ! -f "$CANDIDATES_FILE" ]; then
+    log "SKIP: $CANDIDATES_FILE not found (no candidates generated for $DATE)"
+    log "=== Grading run finished (nothing to do) ==="
+    exit 0
+  fi
+
+  # 1. Grade against the MLB boxscore.
+  if ! "$PYTHON" -m scripts.grade_picks; then
+    rc=$?
+    log "FAILED: grade_picks exited $rc"
+    exit "$rc"
+  fi
+
+  if [ ! -f "$GRADED_FILE" ]; then
+    log "WARN: grade_picks succeeded but $GRADED_FILE was not written"
+    log "=== Grading run finished (no history update) ==="
+    exit 0
+  fi
+
+  # 2. Fold into the cumulative history the trainer reads. Without this,
+  #    the retrain below just re-fits the same stale rows forever.
+  if ! "$PYTHON" -m scripts.build_graded_history "$GRADED_FILE" \
+        --out output/graded_history.csv; then
+    rc=$?
+    log "FAILED: build_graded_history exited $rc"
+    exit "$rc"
+  fi
+
+  # 3. Retrain had_hit_1 / had_hit_2 / had_run_1 on the updated history.
+  #    Non-fatal: a failed retrain leaves yesterday's bundles in place,
+  #    which is better than losing the freshly graded rows.
+  if "$PYTHON" -m scripts.train_hit_model_v2 \
+        --history-file output/graded_history.csv -v; then
+    log "retrain OK"
+  else
+    log "WARN: retrain failed, keeping previous model bundles"
+  fi
+
+  log "=== Grading run finished ==="
+} >> "$LOG_FILE" 2>&1

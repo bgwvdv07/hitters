@@ -1,17 +1,27 @@
 #!/usr/bin/env bash
-set -euo pipefail
+# Build today's hit candidates. Run mid-afternoon, after lineups post.
 
-PROJECT_DIR="/home/david/hitters"
-PYTHON="/usr/bin/python3"
-LOG_DIR="$PROJECT_DIR/logs"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/_common.sh"
+
 LOG_FILE="$LOG_DIR/lineups.log"
+DATE="$(date +%Y-%m-%d)"
 
-mkdir -p "$LOG_DIR"
-cd "$PROJECT_DIR"
+# Prevent overlapping runs. The grading log shows three invocations
+# inside 60 seconds on 2026-08-11, which means cron double-fired.
+exec 9>"$LOG_DIR/.lineups.lock"
+if ! flock -n 9; then
+  log "lineups already running, skipping" >> "$LOG_FILE"
+  exit 0
+fi
 
-echo "=== Lineups run started: $(date -Is) ===" | tee -a "$LOG_FILE"
+{
+  log "=== Lineups run started for $DATE ==="
 
-"$PYTHON" -m scripts.mlb_hit_finder --date "$(date +%Y-%m-%d)" \
-  >> "$LOG_FILE" 2>&1
-
-echo "=== Lineups run finished: $(date -Is) ===" | tee -a "$LOG_FILE"
+  if "$PYTHON" -m scripts.mlb_hit_finder --date "$DATE" -v; then
+    log "=== Lineups run finished OK ==="
+  else
+    rc=$?
+    log "=== Lineups run FAILED (exit $rc) ==="
+    exit "$rc"
+  fi
+} >> "$LOG_FILE" 2>&1
